@@ -2,6 +2,34 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // 🔥 인증이 필요 없는 공개 경로는 조기에 리턴 (성능 최적화)
+  const publicPaths = [
+    '/',
+    '/login',
+    '/pricing',
+    '/faq',
+    '/contact',
+    '/products',
+  ]
+  
+  // 정적 파일도 제외
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/fonts') ||
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/favicon.ico') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next()
+  }
+
+  // 공개 경로는 인증 체크 없이 바로 통과
+  const isPublicPath = publicPaths.some((p) => 
+    pathname === p || pathname.startsWith('/products/')
+  )
+
   let response = NextResponse.next({
     request,
   })
@@ -27,8 +55,10 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 이 줄이 핵심입니다: 로그인 세션을 매 요청마다 갱신해줍니다
-  await supabase.auth.getUser()
+  // 🔥 공개 경로는 세션 갱신도 생략 (속도 향상)
+  if (!isPublicPath) {
+    await supabase.auth.getUser()
+  }
 
   return response
 }

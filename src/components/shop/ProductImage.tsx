@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export default function ProductImage({
   src,
   category,
@@ -10,10 +12,16 @@ export default function ProductImage({
   accentHex?: string
 }) {
   if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
-      <div className="w-full aspect-square rounded-2xl overflow-hidden shadow-soft">
-        <img src={src} alt={alt} className="w-full h-full object-cover" />
+      <div className="w-full aspect-square rounded-2xl overflow-hidden shadow-soft relative">
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          priority={false}
+        />
       </div>
     )
   }

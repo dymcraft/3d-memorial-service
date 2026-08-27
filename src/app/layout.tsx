@@ -8,18 +8,24 @@ const displayFont = Noto_Serif_KR({
   subsets: ["latin"],
   weight: ["500", "700"],
   variable: "--font-display",
+  display: "swap",
+  preload: true,
 });
 
 const bodyFont = Noto_Sans_KR({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
   variable: "--font-body",
+  display: "swap",
+  preload: true,
 });
 
 const accentFont = Gaegu({
   subsets: ["latin"],
   weight: ["700"],
   variable: "--font-accent",
+  display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {
