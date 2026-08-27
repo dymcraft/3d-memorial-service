@@ -1,101 +1,73 @@
-import Image from "next/image";
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import ProductGrid from '@/components/shop/ProductGrid'
 
-export default function Home() {
+export default async function HomePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // 🔥 관리자 계정이면 바로 관리자 페이지로 리디렉션
+  if (user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    
+    if (profile?.role === 'admin') {
+      redirect('/admin/orders')
+    }
+  }
+
+  const { data: products } = await supabase
+    .from('products')
+    .select('*, product_options(*)')
+    .eq('is_active', true)
+    .order('display_order')
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div>
+      <section className="relative overflow-hidden bg-gradient-to-b from-bronze/[0.06] via-stone-paper to-stone-paper">
+        <svg
+          viewBox="0 0 400 400"
+          className="absolute -top-20 -right-20 w-[420px] h-[420px] opacity-[0.12] pointer-events-none"
+        >
+          <circle cx="200" cy="200" r="190" fill="none" stroke="#8B3A3A" strokeWidth="1" />
+          <circle cx="200" cy="200" r="150" fill="none" stroke="#8B3A3A" strokeWidth="1" />
+          <circle cx="200" cy="200" r="110" fill="none" stroke="#8B3A3A" strokeWidth="1" />
+          <circle cx="200" cy="200" r="70" fill="none" stroke="#8B3A3A" strokeWidth="1" />
+        </svg>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+          <p className="text-xs tracking-[0.2em] text-seal uppercase mb-4">3D Figure Craft</p>
+          <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink leading-tight max-w-2xl">
+            특별한 순간을,{' '}
+            <span className="font-accent text-seal text-5xl sm:text-6xl">오래도록</span>
+            <br />
+            간직하는 조형물
+          </h1>
+          <p className="text-ink-soft max-w-md mt-6">
+            추모, 축하, 커플, 반려동물까지 — 사진 한 장이면 충분합니다.
+            정면·측면 사진만 보내주시면 3D 스캔부터 프린팅, 후가공까지 책임지고 제작해드립니다.
+          </p>
+          <Link
+            href="#products"
+            className="inline-block mt-8 bg-ink text-stone-paper px-7 py-3 rounded-full text-sm shadow-soft hover:shadow-medium hover:bg-seal transition-all"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            상품 둘러보기
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      <section id="products" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+        <div className="flex items-center gap-4 mb-6">
+          <h2 className="font-display text-xl font-bold text-ink">상품</h2>
+          <div className="flex-1 h-px bg-line" />
+          <span className="text-xs text-ink-soft/60">{products?.length ?? 0}개</span>
+        </div>
+        <ProductGrid products={products ?? []} />
+      </section>
     </div>
-  );
+  )
 }
