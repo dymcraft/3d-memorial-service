@@ -6,14 +6,17 @@ const items = [
   {
     title: '제작 기간 안내',
     content: '사진 전달 후 시안 확인까지 1~2일, 승인 후 제작·배송까지 약 1~2주 소요됩니다.',
+    image: 'https://placehold.co/500x300/f6f4ef/8c6f4e?text=Production+Timeline',
   },
   {
     title: '환불 및 교환 안내',
     content: '3D 시안 확인 전(제작 착수 전)에는 전액 환불이 가능합니다. 시안 승인 후에는 맞춤 제작 특성상 단순 변심에 의한 환불이 제한되며, 파손·불량 등 제작 하자에 대해서는 무상 교환해드립니다.',
+    image: 'https://placehold.co/500x300/f6f4ef/8c6f4e?text=Quality+Check',
   },
   {
     title: '배송 안내',
     content: '전국 택배 배송이며, 제작 완료 후 2~3일 이내 발송됩니다. 파손 방지를 위해 전용 포장재로 안전하게 배송해드립니다.',
+    image: 'https://placehold.co/500x300/f6f4ef/8c6f4e?text=Packaging',
   },
 ]
 
@@ -33,7 +36,15 @@ export default function PurchaseInfo() {
             <span className="text-ink-soft text-lg">{openIndex === i ? '−' : '+'}</span>
           </button>
           {openIndex === i && (
-            <p className="text-sm text-ink-soft leading-relaxed pb-4">{item.content}</p>
+            <div className="pb-4">
+              {/* 🔥 실사진 준비되면 image 값만 교체하면 됩니다 */}
+              <img
+                src={item.image}
+                alt={item.title}
+                className="w-full max-w-md h-40 object-cover rounded-xl mb-3"
+              />
+              <p className="text-sm text-ink-soft leading-relaxed">{item.content}</p>
+            </div>
           )}
         </div>
       ))}

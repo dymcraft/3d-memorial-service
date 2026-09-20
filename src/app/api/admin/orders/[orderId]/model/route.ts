@@ -24,13 +24,12 @@ export async function PUT(
       return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 });
     }
 
-    const { step } = await request.json();
+    const { modelUrl } = await request.json();
 
-    if (!step) {
-      return NextResponse.json({ error: '변경할 단계를 선택해주세요.' }, { status: 400 });
+    if (!modelUrl) {
+      return NextResponse.json({ error: '모델 URL이 없습니다.' }, { status: 400 });
     }
 
-    // 주문 존재 확인
     const { data: order } = await supabase
       .from('orders')
       .select('*')
@@ -42,26 +41,26 @@ export async function PUT(
     }
 
     const previousStep = order.current_step;
+    const nextStep = 'CONFIRM_WAITING'; // 모델 업로드 완료 → 고객 확인 대기로 자동 전환
+    const now = new Date().toISOString();
 
-    // 공정 업데이트: current_step만 갱신한다.
-    // status 필드는 더 이상 워크플로 로직에 쓰지 않는다 (current_step으로 통일).
+    // 🔥 모델 URL 갱신 + 공정 전환을 함께 처리
     const { error } = await supabase
       .from('orders')
       .update({
-        current_step: step,
-        step_updated_at: new Date().toISOString(),
+        model_3d_url: modelUrl,
+        current_step: nextStep,
+        step_updated_at: now,
       })
       .eq('id', params.orderId);
 
     if (error) {
-      console.error('공정 업데이트 오류:', error);
+      console.error('모델 업로드 반영 오류:', error);
       return NextResponse.json({ error: '업데이트 중 오류가 발생했습니다.' }, { status: 500 });
     }
 
-    // 🔥 이력 기록: 이전 단계의 열린 행을 닫고(completed_at), 새 단계 행을 연다(started_at).
-    // 감사로그 실패가 본 작업(공정 변경) 성공을 막으면 안 되므로 에러는 로그만 남긴다.
-    const now = new Date().toISOString();
-
+    // 이력 기록 (step/route.ts와 동일한 패턴): 이전 단계 닫고 새 단계 시작
+    // 감사로그 실패가 본 작업 성공을 막지 않도록 에러는 로그만 남긴다.
     const { error: closeError } = await supabase
       .from('order_step_histories')
       .update({ completed_at: now })
@@ -76,22 +75,21 @@ export async function PUT(
       .from('order_step_histories')
       .insert({
         order_id: params.orderId,
-        step,
+        step: nextStep,
         previous_step: previousStep,
         changed_by: user.id,
         started_at: now,
+        description: '3D 모델 업로드 완료',
       });
 
     if (historyError) {
       console.error('공정 이력 기록 실패:', historyError);
     }
 
-    // TODO: 알림 트리거 (SMS/이메일)
-
     return NextResponse.json({
       success: true,
-      message: '공정이 변경되었습니다.',
-      newStep: step,
+      message: '모델이 업로드되고 고객 확인 대기 상태로 전환되었습니다.',
+      newStep: nextStep,
     });
   } catch (error) {
     console.error('서버 오류:', error);

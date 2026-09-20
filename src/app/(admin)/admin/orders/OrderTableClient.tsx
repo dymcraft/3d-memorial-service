@@ -3,26 +3,39 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { STEPS } from '@/lib/utils/constants';
 
-const STATUS_LIST = [
-  { key: 'PENDING_UPLOAD', label: '주문 접수', color: 'text-slate-600', bg: 'bg-slate-100' },
-  { key: 'MODELING', label: '3D 모델링', color: 'text-blue-600', bg: 'bg-blue-100' },
-  { key: 'REVIEW', label: '시안 확인', color: 'text-yellow-600', bg: 'bg-yellow-100' },
-  { key: 'REVISION', label: '수정 요청', color: 'text-red-600', bg: 'bg-red-100' },
-  { key: 'PRINTING', label: '출력 준비', color: 'text-purple-600', bg: 'bg-purple-100' },
-  { key: 'POST_PROCESSING', label: '레진 출력', color: 'text-indigo-600', bg: 'bg-indigo-100' },
-  { key: 'SHIPPING', label: '배송중', color: 'text-green-600', bg: 'bg-green-100' },
-  { key: 'DELIVERED', label: '배송 완료', color: 'text-gray-700', bg: 'bg-gray-200' },
-];
+// 🔥 status 필드 대신 current_step(STEPS)을 기준으로 색상을 매핑한다.
+// STEPS 자체엔 색상 정보가 없어서 여기서만 로컬로 정의 (constants.ts는 안 건드림).
+const STEP_STYLE: Record<string, { color: string; bg: string }> = {
+  ORDER_RECEIVED: { color: 'text-slate-600', bg: 'bg-slate-100' },
+  AI_PROCESSING: { color: 'text-blue-600', bg: 'bg-blue-100' },
+  CONFIRM_WAITING: { color: 'text-yellow-600', bg: 'bg-yellow-100' },
+  APPROVED: { color: 'text-teal-600', bg: 'bg-teal-100' },
+  REVISION_REQUESTED: { color: 'text-red-600', bg: 'bg-red-100' },
+  PRINTING_START: { color: 'text-purple-600', bg: 'bg-purple-100' },
+  PRINTING_RESIN: { color: 'text-purple-600', bg: 'bg-purple-100' },
+  PRINTING_PLA: { color: 'text-purple-600', bg: 'bg-purple-100' },
+  POST_PROCESS: { color: 'text-indigo-600', bg: 'bg-indigo-100' },
+  PACKAGING: { color: 'text-indigo-600', bg: 'bg-indigo-100' },
+  SHIPPED: { color: 'text-green-600', bg: 'bg-green-100' },
+  DELIVERED: { color: 'text-gray-700', bg: 'bg-gray-200' },
+};
+const DEFAULT_STYLE = { color: 'text-slate-600', bg: 'bg-slate-100' };
 
 export default function OrderTableClient({ initialOrders }: { initialOrders: any[] }) {
   const [orders] = useState(initialOrders);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [adminMemo, setAdminMemo] = useState('');
+  // 🔥 order-photos가 private 버킷이라 photo_urls(내부 경로)를 그대로 <img src>에
+  // 쓸 수 없다. 모달을 열 때 서명 URL을 발급받아 여기에 담아서 렌더링한다.
+  const [photoDisplayUrls, setPhotoDisplayUrls] = useState<string[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [photosError, setPhotosError] = useState('');
   const supabase = createClient();
 
-  const getCountByStatus = (statusKey: string) => {
-    return orders.filter((order) => order.status === statusKey).length;
+  const getCountByStep = (stepCode: string) => {
+    return orders.filter((order) => order.current_step === stepCode).length;
   };
 
   const calculateDates = (createdAt: string, note: string | null) => {
@@ -46,9 +59,34 @@ export default function OrderTableClient({ initialOrders }: { initialOrders: any
     return { requestedDate, remainingDays };
   };
 
-  const openModal = (order: any) => {
+  const openModal = async (order: any) => {
     setSelectedOrder(order);
     setAdminMemo(order.admin_memo || '');
+    setPhotoDisplayUrls([]);
+    setPhotosError('');
+
+    if (order.photo_urls && order.photo_urls.length > 0) {
+      setPhotosLoading(true);
+      try {
+        const res = await fetch(`/api/admin/orders/${order.id}/photo-urls`);
+        const data = await res.json();
+        if (res.ok) {
+          setPhotoDisplayUrls(data.urls || []);
+        } else {
+          setPhotosError(data.error || '사진을 불러오지 못했습니다.');
+        }
+      } catch {
+        setPhotosError('사진을 불러오는 중 오류가 발생했습니다.');
+      } finally {
+        setPhotosLoading(false);
+      }
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedOrder(null);
+    setPhotoDisplayUrls([]);
+    setPhotosError('');
   };
 
   const saveMemo = async () => {
@@ -68,19 +106,20 @@ export default function OrderTableClient({ initialOrders }: { initialOrders: any
         <div className="text-sm text-slate">총 {orders?.length || 0}개 주문</div>
       </div>
 
-      {/* 1번: 상태 현황 바 */}
+      {/* 1번: 상태 현황 바 (current_step 기준) */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {STATUS_LIST.map((status) => {
-          const count = getCountByStatus(status.key);
+        {STEPS.map((step) => {
+          const count = getCountByStep(step.code);
+          const style = STEP_STYLE[step.code] || DEFAULT_STYLE;
           return (
             <button
-              key={status.key}
-              className={`px-4 py-1.5 text-sm rounded-full border font-medium transition ${status.bg} ${status.color}`}
+              key={step.code}
+              className={`px-4 py-1.5 text-sm rounded-full border font-medium transition ${style.bg} ${style.color}`}
             >
-              {status.label}
+              {step.emoji} {step.label}
               {count > 0 && (
                 <span className="ml-2 px-2 py-0.5 bg-white rounded-full text-xs font-bold shadow-sm">
-                  {count}건 진행중
+                  {count}건
                 </span>
               )}
             </button>
@@ -99,7 +138,7 @@ export default function OrderTableClient({ initialOrders }: { initialOrders: any
                 <th className="text-left px-4 py-3 font-medium text-slate">고객</th>
                 <th className="text-left px-4 py-3 font-medium text-slate">상품</th>
                 <th className="text-left px-4 py-3 font-medium text-slate">금액</th>
-                <th className="text-left px-4 py-3 font-medium text-slate">상태</th>
+                <th className="text-left px-4 py-3 font-medium text-slate">공정</th>
                 <th className="text-left px-4 py-3 font-medium text-slate">요청날짜</th>
                 <th className="text-left px-4 py-3 font-medium text-slate">잔여일</th>
                 <th className="text-left px-4 py-3 font-medium text-slate">관리</th>
@@ -108,11 +147,11 @@ export default function OrderTableClient({ initialOrders }: { initialOrders: any
             <tbody>
               {orders?.map((order) => {
                 const { requestedDate, remainingDays } = calculateDates(order.created_at, order.revision_note);
-                const currentStatus = STATUS_LIST.find((s) => s.key === order.status);
+                const currentStep = STEPS.find((s) => s.code === order.current_step);
+                const style = STEP_STYLE[order.current_step] || DEFAULT_STYLE;
 
                 return (
                   <tr key={order.id} className="border-b border-clay/10 hover:bg-cream/30 transition">
-                    {/* 🔥 수정: 주문번호를 Link로 감싸서 클릭 시 /order/[orderId]로 이동 */}
                     <td className="px-4 py-3 font-mono text-xs">
                       <Link
                         href={`/order/${order.id}`}
@@ -125,8 +164,8 @@ export default function OrderTableClient({ initialOrders }: { initialOrders: any
                     <td className="px-4 py-3 text-slate">{order.products?.name || '-'}</td>
                     <td className="px-4 py-3 font-medium text-charcoal">{order.amount?.toLocaleString()}원</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs ${currentStatus?.bg} ${currentStatus?.color}`}>
-                        {currentStatus?.label || order.status}
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs ${style.bg} ${style.color}`}>
+                        {currentStep ? `${currentStep.emoji} ${currentStep.label}` : order.current_step}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate text-xs">{requestedDate.toLocaleDateString('ko-KR')}</td>
@@ -153,7 +192,7 @@ export default function OrderTableClient({ initialOrders }: { initialOrders: any
       {selectedOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 relative">
-            <button onClick={() => setSelectedOrder(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">×</button>
             
             <h2 className="font-display text-xl font-bold mb-4">주문 상세 정보</h2>
             
@@ -181,13 +220,21 @@ export default function OrderTableClient({ initialOrders }: { initialOrders: any
 
               <div>
                 <h3 className="font-semibold text-gray-700 mb-2">🖼️ 업로드한 원본 사진</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {selectedOrder.photo_urls && selectedOrder.photo_urls.length > 0 ? (
-                    selectedOrder.photo_urls.map((url: string, idx: number) => (
+                {/* 🔥 order-photos는 private 버킷이라 photo_urls(내부 경로)를 바로 못 쓰고,
+                    openModal에서 발급받은 서명 URL(photoDisplayUrls)로 렌더링한다. */}
+                {photosLoading ? (
+                  <p className="text-gray-400 text-sm">사진 불러오는 중...</p>
+                ) : photosError ? (
+                  <p className="text-red-500 text-sm">{photosError}</p>
+                ) : photoDisplayUrls.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {photoDisplayUrls.map((url, idx) => (
                       <img key={idx} src={url} alt="업로드 사진" className="w-full h-24 object-cover rounded-lg border" />
-                    ))
-                  ) : <p className="text-gray-400 text-sm">업로드된 사진이 없습니다.</p>}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">업로드된 사진이 없습니다.</p>
+                )}
               </div>
 
               <div>

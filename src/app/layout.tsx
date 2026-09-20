@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Noto_Serif_KR, Noto_Sans_KR, Gaegu } from "next/font/google";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -38,14 +39,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // 🔥 미들웨어가 실어 보낸 현재 경로를 읽어서, 관리자 페이지에서는
+  // 고객용 Header/Footer를 렌더링하지 않는다.
+  // (admin/layout.tsx가 자체 사이드바+헤더를 이미 그리고 있어서 이중으로 뜨는 걸 방지)
+  const pathname = headers().get("x-pathname") || "";
+  const isAdminRoute = pathname.startsWith("/admin");
+
   return (
     <html lang="ko">
       <body
         className={`${displayFont.variable} ${bodyFont.variable} ${accentFont.variable} font-body antialiased bg-stone-paper`}
       >
-        <Header />
+        {!isAdminRoute && <Header />}
         <main>{children}</main>
-        <Footer />
+        {!isAdminRoute && <Footer />}
       </body>
     </html>
   );

@@ -1,12 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import TossPayment from '@/components/payment/TossPayment'
 
 export default async function CheckoutPage({
   searchParams,
 }: {
-  searchParams: { productId?: string; options?: string }
+  searchParams: { productId?: string; options?: string; fail?: string }
 }) {
-  const { productId, options: optionIdsParam } = searchParams
+  const { productId, options: optionIdsParam, fail } = searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -46,6 +47,12 @@ export default async function CheckoutPage({
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-16">
       <h1 className="font-display text-2xl font-bold text-ink mb-8">주문 확인</h1>
 
+      {fail && (
+        <div className="border border-red-200 bg-red-50 p-4 mb-6 text-sm text-red-600">
+          결제가 취소되었거나 실패했습니다. 다시 시도해주세요.
+        </div>
+      )}
+
       <div className="border border-line p-6 mb-6">
         <h2 className="font-display text-lg font-bold text-ink mb-1">{product.name}</h2>
         <p className="text-sm text-ink-soft mb-4">
@@ -57,21 +64,22 @@ export default async function CheckoutPage({
         </div>
       </div>
 
-      {!user && (
+      {!user ? (
         <div className="border border-bronze/30 bg-bronze/5 p-4 mb-6 text-sm text-ink-soft">
           결제 전 로그인이 필요합니다.{' '}
           <Link href={`/login?redirect=${encodeURIComponent(redirectQuery)}`} className="text-bronze underline">
             로그인하러 가기
           </Link>
         </div>
+      ) : (
+        <TossPayment
+          productId={productId}
+          optionIds={selectedIds}
+          amount={total}
+          orderName={product.name}
+          customerName={user.email ?? undefined}
+        />
       )}
-
-      <button disabled className="w-full bg-ink/30 text-stone-paper py-3 text-sm cursor-not-allowed">
-        토스페이먼츠 결제 연동 준비중 (2주차)
-      </button>
-      <p className="text-xs text-ink-soft/70 mt-3 text-center">
-        지금은 화면 흐름만 확인하는 단계입니다. 실제 결제는 다음 주에 연결됩니다.
-      </p>
     </div>
   )
 }

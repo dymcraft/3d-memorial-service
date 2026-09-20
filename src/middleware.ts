@@ -13,7 +13,13 @@ export async function middleware(request: NextRequest) {
     '/contact',
     '/products',
   ]
-  
+
+  // 🔥 다운스트림 서버 컴포넌트(app/layout.tsx)가 현재 경로를 알 수 있도록
+  // 요청 헤더에 pathname을 실어 보냄. Header.tsx가 서버 컴포넌트라 usePathname()을
+  // 못 쓰기 때문에, 이 방식으로 "지금 /admin 경로인지"를 레이아웃에 전달한다.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', pathname)
+
   // 정적 파일도 제외
   if (
     pathname.startsWith('/_next') ||
@@ -22,7 +28,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/favicon.ico') ||
     pathname.includes('.')
   ) {
-    return NextResponse.next()
+    return NextResponse.next({ request: { headers: requestHeaders } })
   }
 
   // 공개 경로는 인증 체크 없이 바로 통과
@@ -31,7 +37,7 @@ export async function middleware(request: NextRequest) {
   )
 
   let response = NextResponse.next({
-    request,
+    request: { headers: requestHeaders },
   })
 
   const supabase = createServerClient(
@@ -46,7 +52,7 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          response = NextResponse.next({ request })
+          response = NextResponse.next({ request: { headers: requestHeaders } })
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           )
